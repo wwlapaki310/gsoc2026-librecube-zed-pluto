@@ -1,0 +1,24 @@
+{
+  "name": "tree-sitter-pluto",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for the PLUTO procedure language (ECSS-E-ST-70-32C)",
+  "main": "bindings/node",
+  "keywords": [
+    "tree-sitter",
+    "pluto",
+    "space",
+    "ecss",
+    "parser"
+  ],
+  "scripts": {
+    "build": "tree-sitter generate && node-gyp build",
+    "test": "tree-sitter test",
+    "parse": "tree-sitter parse"
+  },
+  "dependencies": {
+    "nan": "*"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.22.0"
+  }
+}

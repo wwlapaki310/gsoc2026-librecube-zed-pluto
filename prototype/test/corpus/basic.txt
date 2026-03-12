@@ -1,0 +1,111 @@
+================================================================================
+Minimal procedure (from ECSS spec example)
+================================================================================
+procedure
+  main
+    initiate and confirm SwitchOnGyroConverter;
+    initiate and confirm SwitchOnGyro5;
+  end main
+end procedure
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (procedure
+    (main_body
+      (activity_call (identifier))
+      (activity_call (identifier)))))
+
+================================================================================
+Procedure with preconditions and confirmation
+================================================================================
+procedure
+  preconditions
+    wait until value of GyroTemp > 60 degC
+  end preconditions
+  main
+    initiate and confirm SwitchOnGyro5;
+    initiate and confirm Gyro5FineMode;
+  end main
+  confirmation
+    wait until value of Gyro5 < 0.2 deg/h
+  end confirmation
+end procedure
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (procedure
+    (preconditions
+      (wait_statement
+        (binary_expression
+          (telemetry_ref (identifier))
+          (comparison_op)
+          (eng_value (number) (eng_unit)))))
+    (main_body
+      (activity_call (identifier))
+      (activity_call (identifier)))
+    (confirmation
+      (wait_statement
+        (binary_expression
+          (telemetry_ref (identifier))
+          (comparison_op)
+          (eng_value (number) (eng_unit)))))))
+
+================================================================================
+Step structure
+================================================================================
+procedure OrbitManeuver
+  main
+    step PrepareThrusters
+      main
+        initiate and confirm ThrusterValveOpen;
+        set FuelPressure = 200 kPa;
+      end main
+    end step
+  end main
+end procedure
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (procedure
+    (identifier)
+    (main_body
+      (step
+        (identifier)
+        (main_body
+          (activity_call (identifier))
+          (set_statement
+            (identifier)
+            (eng_value (number) (eng_unit))))))))
+
+================================================================================
+If statement
+================================================================================
+procedure
+  main
+    step Check
+      main
+        if value of TempSensor > 60 degC then
+          initiate and confirm CoolingSystem;
+        end if
+      end main
+    end step
+  end main
+end procedure
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (procedure
+    (main_body
+      (step
+        (identifier)
+        (main_body
+          (if_statement
+            (binary_expression
+              (telemetry_ref (identifier))
+              (comparison_op)
+              (eng_value (number) (eng_unit)))
+            (activity_call (identifier))))))))
