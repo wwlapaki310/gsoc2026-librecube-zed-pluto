@@ -1,0 +1,35 @@
+/* Orbit maneuver example with if/while */
+
+procedure OrbitManeuver
+
+  variables
+    attempt : integer = 0;
+  end variables
+
+  main
+    step PrepareThrusters
+      preconditions
+        wait until value of ThrusterTemp > 20 degC
+      end preconditions
+      main
+        initiate and confirm ThrusterValveOpen;
+        set FuelPressure = 200 kPa;
+      end main
+    end step
+
+    step FireThrusters
+      main
+        if value of FuelPressure >= 200 kPa then
+          initiate and confirm MainThrusterBurn;
+          wait for 120 s until value of DeltaV > 5 m/s;
+        else
+          initiate AbortSequence;
+        end if
+      end main
+      confirmation
+        check value of ThrusterStatus = NOMINAL;
+      end confirmation
+    end step
+  end main
+
+end procedure

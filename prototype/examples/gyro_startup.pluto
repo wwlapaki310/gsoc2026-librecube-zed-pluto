@@ -1,0 +1,31 @@
+/* Example from ECSS-E-ST-70-32C spec:
+   Gyroscope startup procedure */
+
+procedure GyroStartup
+  preconditions
+    wait until value of GyroTemp > 60 degC
+  end preconditions
+
+  main
+    step PowerOn
+      main
+        initiate and confirm SwitchOnGyroConverter;
+        initiate and confirm SwitchOnGyro5;
+        initiate and confirm Gyro5FineMode;
+      end main
+    end step
+
+    step Verify
+      main
+        check value of Gyro5Status = ACTIVE;
+      end main
+      confirmation
+        wait until value of Gyro5 < 0.2 deg/h
+      end confirmation
+    end step
+  end main
+
+  confirmation
+    wait until value of Gyro5 < 0.2 deg/h
+  end confirmation
+end procedure

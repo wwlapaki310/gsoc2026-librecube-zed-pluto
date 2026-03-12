@@ -2,98 +2,95 @@
  * Tree-sitter grammar for PLUTO
  * ECSS-E-ST-70-32C — Test and Operations Procedure Language
  *
- * Reference:
- *   - https://ecss.nl/standard/ecss-e-st-70-32c-test-and-operations-procedure-language/
- *   - https://gitlab.com/librecube/tools/vscodium-pluto-syntax (VS Code plugin)
- *   - https://gitlab.com/librecube/lib/python-pluto-parser
- *
- * Status: WIP skeleton — covers top-level structure and core tokens.
- *         Full grammar implementation is the GSoC 2026 project goal.
+ * Status: WIP — core structure parses. Run: tree-sitter generate && tree-sitter test
  */
 
 module.exports = grammar({
   name: 'pluto',
 
-  // PLUTO is case-insensitive; handled via case-insensitive keywords below
   extras: $ => [
     /\s/,
     $.comment,
   ],
 
+  // Resolve ambiguities via explicit precedence
+  conflicts: $ => [
+    [$.expression, $.binary_expression],
+  ],
+
   rules: {
-    // -------------------------------------------------------------------------
-    // Top-level: a PLUTO file is one or more procedure definitions
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Root
+    // -----------------------------------------------------------------------
     source_file: $ => repeat1($.procedure),
 
-    // -------------------------------------------------------------------------
-    // Procedure structure
-    // PLUTO spec: procedure = declaration_body + preconditions? + main + confirmation? + watchdog?
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Procedure
+    // -----------------------------------------------------------------------
     procedure: $ => seq(
-      caseInsensitive('procedure'),
-      optional($.identifier),       // procedure name (optional in spec)
+      keyword('procedure'),
+      optional(field('name', $.identifier)),
       optional($.declaration_body),
       optional($.preconditions),
       $.main_body,
       optional($.confirmation),
       optional($.watchdog),
-      caseInsensitive('end'),
-      caseInsensitive('procedure'),
+      keyword('end'),
+      keyword('procedure'),
     ),
 
     declaration_body: $ => seq(
-      caseInsensitive('variables'),
+      keyword('variables'),
       repeat($.variable_declaration),
-      caseInsensitive('end'),
-      caseInsensitive('variables'),
+      keyword('end'),
+      keyword('variables'),
     ),
 
     preconditions: $ => seq(
-      caseInsensitive('preconditions'),
+      keyword('preconditions'),
       repeat($.statement),
-      caseInsensitive('end'),
-      caseInsensitive('preconditions'),
+      keyword('end'),
+      keyword('preconditions'),
     ),
 
     main_body: $ => seq(
-      caseInsensitive('main'),
+      keyword('main'),
       repeat(choice($.step, $.statement)),
-      caseInsensitive('end'),
-      caseInsensitive('main'),
+      keyword('end'),
+      keyword('main'),
     ),
 
     confirmation: $ => seq(
-      caseInsensitive('confirmation'),
+      keyword('confirmation'),
       repeat($.statement),
-      caseInsensitive('end'),
-      caseInsensitive('confirmation'),
+      keyword('end'),
+      keyword('confirmation'),
     ),
 
     watchdog: $ => seq(
-      caseInsensitive('watchdog'),
+      keyword('watchdog'),
       repeat($.statement),
-      caseInsensitive('end'),
-      caseInsensitive('watchdog'),
+      keyword('end'),
+      keyword('watchdog'),
     ),
 
-    // -------------------------------------------------------------------------
-    // Step (nested mini-procedure inside main)
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Step
+    // -----------------------------------------------------------------------
     step: $ => seq(
-      caseInsensitive('step'),
-      $.identifier,
+      keyword('step'),
+      field('name', $.identifier),
       optional($.preconditions),
       $.main_body,
       optional($.confirmation),
       optional($.watchdog),
-      caseInsensitive('end'),
-      caseInsensitive('step'),
+      keyword('end'),
+      keyword('step'),
     ),
 
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
     // Statements
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
     statement: $ => choice(
       $.activity_call,
       $.wait_statement,
@@ -103,159 +100,156 @@ module.exports = grammar({
       $.check_statement,
     ),
 
-    // initiate [and confirm] <activity>;
+    // initiate [and confirm] <id>;
     activity_call: $ => seq(
-      caseInsensitive('initiate'),
-      optional(seq(caseInsensitive('and'), caseInsensitive('confirm'))),
-      $.identifier,
+      keyword('initiate'),
+      optional(seq(keyword('and'), keyword('confirm'))),
+      field('activity', $.identifier),
       ';',
     ),
 
-    // wait until <condition>  |  wait for <duration> until <condition>
+    // wait until <expr>  |  wait for <eng_value> until <expr>
     wait_statement: $ => seq(
-      caseInsensitive('wait'),
+      keyword('wait'),
       choice(
-        seq(caseInsensitive('until'), $.expression),
-        seq(caseInsensitive('for'), $.eng_value, caseInsensitive('until'), $.expression),
+        seq(keyword('until'), $.expression),
+        seq(keyword('for'), $.eng_value, keyword('until'), $.expression),
       ),
     ),
 
-    // if <condition> then ... [else ...] end if
+    // if <expr> then ... [else ...] end if
     if_statement: $ => seq(
-      caseInsensitive('if'),
+      keyword('if'),
       $.expression,
-      caseInsensitive('then'),
+      keyword('then'),
       repeat($.statement),
-      optional(seq(
-        caseInsensitive('else'),
-        repeat($.statement),
-      )),
-      caseInsensitive('end'),
-      caseInsensitive('if'),
+      optional(seq(keyword('else'), repeat($.statement))),
+      keyword('end'),
+      keyword('if'),
     ),
 
-    // while <condition> do ... end while
+    // while <expr> do ... end while
     while_statement: $ => seq(
-      caseInsensitive('while'),
+      keyword('while'),
       $.expression,
-      caseInsensitive('do'),
+      keyword('do'),
       repeat($.statement),
-      caseInsensitive('end'),
-      caseInsensitive('while'),
+      keyword('end'),
+      keyword('while'),
     ),
 
-    // set <variable> = <expression>;
+    // set <id> = <expr>;
     set_statement: $ => seq(
-      caseInsensitive('set'),
-      $.identifier,
+      keyword('set'),
+      field('variable', $.identifier),
       '=',
       $.expression,
       ';',
     ),
 
-    // check value of <param> <op> <value>;
+    // check value of <id> <op> <expr>;
     check_statement: $ => seq(
-      caseInsensitive('check'),
-      caseInsensitive('value'),
-      caseInsensitive('of'),
-      $.identifier,
+      keyword('check'),
+      keyword('value'),
+      keyword('of'),
+      field('parameter', $.identifier),
       $.comparison_op,
       $.expression,
       ';',
     ),
 
-    // -------------------------------------------------------------------------
-    // Expressions and values
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Expressions  (use prec.left to avoid left-recursion errors)
+    // -----------------------------------------------------------------------
     expression: $ => choice(
+      $.binary_expression,
+      $.primary_expression,
+    ),
+
+    primary_expression: $ => choice(
       $.telemetry_ref,
       $.eng_value,
       $.boolean_literal,
       $.string_literal,
       $.identifier,
-      $.binary_expression,
     ),
 
-    // value of <parameter>
+    binary_expression: $ => prec.left(1, seq(
+      $.primary_expression,
+      choice($.comparison_op, $.logical_op, $.arithmetic_op),
+      $.primary_expression,
+    )),
+
+    // value of <id>
     telemetry_ref: $ => seq(
-      caseInsensitive('value'),
-      caseInsensitive('of'),
-      $.identifier,
+      keyword('value'),
+      keyword('of'),
+      field('parameter', $.identifier),
     ),
 
-    // number + engineering unit (e.g. "60 degC", "0.2 deg/h", "30 s")
+    // number [unit]   e.g. 60 degC, 0.2 deg/h
     eng_value: $ => seq(
       $.number,
       optional($.eng_unit),
     ),
 
-    binary_expression: $ => seq(
-      $.expression,
-      choice($.comparison_op, $.logical_op, $.arithmetic_op),
-      $.expression,
-    ),
-
-    comparison_op: $ => choice('>', '<', '>=', '<=', '=', '!='),
-    logical_op:    $ => choice(
-      caseInsensitive('and'),
-      caseInsensitive('or'),
-      caseInsensitive('not'),
-    ),
-    arithmetic_op: $ => choice('+', '-', '*', '/'),
-
-    // -------------------------------------------------------------------------
-    // Variable declaration
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Variable declarations
+    // -----------------------------------------------------------------------
     variable_declaration: $ => seq(
-      $.identifier,
+      field('name', $.identifier),
       ':',
       $.type_name,
-      optional(seq('=', $.expression)),
+      optional(seq('=', $.primary_expression)),
       ';',
     ),
 
     type_name: $ => choice(
-      caseInsensitive('integer'),
-      caseInsensitive('real'),
-      caseInsensitive('boolean'),
-      caseInsensitive('string'),
-      caseInsensitive('time'),
+      keyword('integer'),
+      keyword('real'),
+      keyword('boolean'),
+      keyword('string'),
+      keyword('time'),
     ),
 
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Operators
+    // -----------------------------------------------------------------------
+    comparison_op: $ => choice('>', '<', '>=', '<=', '=', '!='),
+    logical_op:    $ => choice(keyword('and'), keyword('or'), keyword('not')),
+    arithmetic_op: $ => choice('+', '-', '*', '/'),
+
+    // -----------------------------------------------------------------------
     // Terminals
-    // -------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Identifiers are case-insensitive in PLUTO; we accept any case here.
     identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
 
-    number: $ => /[+-]?[0-9]+(\.[0-9]+)?/,
+    number: $ => /[+-]?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?/,
 
-    // Engineering unit: letters, digits, /, . (e.g. deg/h, degC, m/s2)
+    // Engineering units: degC, deg/h, m/s2, kPa, rpm ...
     eng_unit: $ => /[a-zA-Z][a-zA-Z0-9\/\.\*]*/,
 
     boolean_literal: $ => choice(
-      caseInsensitive('true'),
-      caseInsensitive('false'),
+      keyword('true'),
+      keyword('false'),
     ),
 
     string_literal: $ => /"[^"]*"/,
 
-    // Comments: /* ... */ and // ...
-    comment: $ => choice(
-      seq('/*', /[^*]*\*+([^/*][^*]*\*+)*/, '/'),
+    // Block comment /* ... */ and line comment // ...
+    comment: $ => token(choice(
       seq('//', /.*/),
-    ),
+      seq('/*', /[^*]*\*+([^/*][^*]*\*+)*/, '/'),
+    )),
   },
 });
 
-/**
- * Helper: case-insensitive keyword matching.
- * Tree-sitter grammars are case-sensitive by default;
- * this wraps each letter in [Xx] alternation.
- */
-function caseInsensitive(str) {
+// Case-insensitive keyword: matches "procedure", "PROCEDURE", "Procedure" etc.
+function keyword(word) {
   return new RegExp(
-    str.split('').map(c =>
-      c.match(/[a-zA-Z]/) ? `[${c.toLowerCase()}${c.toUpperCase()}]` : c
+    word.split('').map(c =>
+      /[a-zA-Z]/.test(c) ? `[${c.toLowerCase()}${c.toUpperCase()}]` : c
     ).join('')
   );
 }
